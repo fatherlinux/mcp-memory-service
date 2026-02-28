@@ -861,7 +861,7 @@ def validate_oauth_configuration() -> None:
     # Validate token expiry settings
     if OAUTH_ACCESS_TOKEN_EXPIRE_MINUTES <= 0:
         errors.append(f"OAuth access token expiry must be positive: {OAUTH_ACCESS_TOKEN_EXPIRE_MINUTES}")
-    elif OAUTH_ACCESS_TOKEN_EXPIRE_MINUTES > 1440:  # 24 hours
+    elif OAUTH_ACCESS_TOKEN_EXPIRE_MINUTES > 43200:  # 30 days
         warnings.append(f"OAuth access token expiry is very long: {OAUTH_ACCESS_TOKEN_EXPIRE_MINUTES} minutes")
 
     if OAUTH_AUTHORIZATION_CODE_EXPIRE_MINUTES <= 0:
@@ -923,7 +923,7 @@ def get_oauth_issuer() -> str:
 OAUTH_ISSUER = os.getenv('MCP_OAUTH_ISSUER') or get_oauth_issuer()
 
 # OAuth token configuration
-OAUTH_ACCESS_TOKEN_EXPIRE_MINUTES = safe_get_int_env('MCP_OAUTH_ACCESS_TOKEN_EXPIRE_MINUTES', 60, min_value=1, max_value=1440)  # 1 minute to 24 hours
+OAUTH_ACCESS_TOKEN_EXPIRE_MINUTES = safe_get_int_env('MCP_OAUTH_ACCESS_TOKEN_EXPIRE_MINUTES', 60, min_value=1, max_value=525600)  # 1 minute to 1 year
 OAUTH_AUTHORIZATION_CODE_EXPIRE_MINUTES = safe_get_int_env('MCP_OAUTH_AUTHORIZATION_CODE_EXPIRE_MINUTES', 10, min_value=1, max_value=60)  # 1 minute to 1 hour
 
 # OAuth security configuration
