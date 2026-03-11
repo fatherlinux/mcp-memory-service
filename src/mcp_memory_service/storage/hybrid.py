@@ -158,9 +158,11 @@ class BackgroundSyncService:
                  secondary_storage: CloudflareStorage,
                  sync_interval: int = None,  # Use config default if None
                  batch_size: int = None,  # Use config default if None
-                 max_queue_size: int = None):  # Use config default if None
+                 max_queue_size: int = None,  # Use config default if None
+                 hybrid_storage=None):  # Back-reference to HybridMemoryStorage for pull sync
         self.primary = primary_storage
         self.secondary = secondary_storage
+        self.hybrid_storage = hybrid_storage
 
         # Use config values if parameters not provided (for backward compatibility)
         # Defensive None checks to prevent Queue initialization with maxsize=None (Issue #316)
@@ -715,12 +717,13 @@ class BackgroundSyncService:
                         logger.info(f"Drift check complete: {drift_stats}")
 
                 # Periodic pull sync: pull new memories from Cloudflare written by other instances
-                try:
-                    pull_result = await self._sync_memories_from_cloudflare(sync_type="periodic")
-                    if pull_result.get('memories_synced', 0) > 0:
-                        logger.info(f"Periodic pull sync: pulled {pull_result['memories_synced']} memories from Cloudflare")
-                except Exception as pull_err:
-                    logger.warning(f"Periodic pull sync failed: {pull_err}")
+                if self.hybrid_storage:
+                    try:
+                        pull_result = await self.hybrid_storage._sync_memories_from_cloudflare(sync_type="periodic")
+                        if pull_result.get('memories_synced', 0) > 0:
+                            logger.info(f"Periodic pull sync: pulled {pull_result['memories_synced']} memories from Cloudflare")
+                    except Exception as pull_err:
+                        logger.warning(f"Periodic pull sync failed: {pull_err}")
 
             except Exception as e:
                 logger.warning(f"Secondary storage health check failed: {e}")
@@ -961,7 +964,8 @@ class HybridMemoryStorage(MemoryStorage):
                     self.primary,
                     self.secondary,
                     sync_interval=self.sync_interval,
-                    batch_size=self.batch_size
+                    batch_size=self.batch_size,
+                    hybrid_storage=self
                 )
                 await self.sync_service.start()
                 logger.info("Background sync service started")
