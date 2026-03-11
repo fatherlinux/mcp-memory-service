@@ -628,7 +628,7 @@ class CloudflareStorage(MemoryStorage):
         """Store memory metadata in D1."""
         # Insert memory record
         insert_sql = """
-        INSERT INTO memories (
+        INSERT OR IGNORE INTO memories (
             content_hash, content, memory_type, created_at, created_at_iso,
             updated_at, updated_at_iso, metadata_json, vector_id, content_size, r2_key
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

@@ -714,6 +714,14 @@ class BackgroundSyncService:
                         drift_stats = await self._detect_and_sync_drift()
                         logger.info(f"Drift check complete: {drift_stats}")
 
+                # Periodic pull sync: pull new memories from Cloudflare written by other instances
+                try:
+                    pull_result = await self._sync_memories_from_cloudflare(sync_type="periodic")
+                    if pull_result.get('memories_synced', 0) > 0:
+                        logger.info(f"Periodic pull sync: pulled {pull_result['memories_synced']} memories from Cloudflare")
+                except Exception as pull_err:
+                    logger.warning(f"Periodic pull sync failed: {pull_err}")
+
             except Exception as e:
                 logger.warning(f"Secondary storage health check failed: {e}")
                 self.sync_stats['cloudflare_available'] = False
@@ -1016,18 +1024,10 @@ class HybridMemoryStorage(MemoryStorage):
 
             logger.info(f"{sync_type.capitalize()} sync: Local={primary_count}, Cloudflare={secondary_count}")
 
-            if secondary_count <= primary_count:
-                logger.info(f"No new memories to sync from Cloudflare ({sync_type} sync)")
-                return {
-                    'success': True,
-                    'memories_synced': 0,
-                    'total_checked': 0,
-                    'message': 'No new memories to pull from Cloudflare',
-                    'time_taken_seconds': round(time.time() - sync_start_time, 3)
-                }
-
             # Pull missing memories from Cloudflare using optimized batch processing
-            missing_count = secondary_count - primary_count
+            # Note: We always do hash-based comparison instead of short-circuiting on count,
+            # because Cloudflare may have unique memories even when local count is higher.
+            missing_count = max(secondary_count - primary_count, 0)
             synced_count = 0
             batch_size = min(500, self.batch_size * 5)  # 5x larger batches for sync
             cursor = None
